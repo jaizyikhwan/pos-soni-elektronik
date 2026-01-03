@@ -1,4 +1,4 @@
-<div class="max-w-7xl mx-auto px-4 py-6 space-y-6 md:pb-0 pb-48">
+<div class="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
     <h2 class="text-2xl font-semibold text-zinc-800 dark:text-zinc-100">
         Daftar Barang

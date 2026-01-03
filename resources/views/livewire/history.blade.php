@@ -1,4 +1,4 @@
-<div class="max-w-7xl mx-auto px-4 py-6 space-y-6 md:pb-0 pb-48">
+<div class="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
     {{-- ================= HEADER ================= --}}
     <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

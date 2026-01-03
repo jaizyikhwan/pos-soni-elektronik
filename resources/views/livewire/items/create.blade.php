@@ -1,4 +1,4 @@
-<div id="barcode-create-container" class="container p-4 md:pb-0 pb-48">
+<div id="barcode-create-container" class="container p-4">
 
     {{-- HILANGKAN SPINNER INPUT NUMBER --}}
     <style>

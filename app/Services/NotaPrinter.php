@@ -11,8 +11,8 @@ class NotaPrinter
     public function print(string $printer, array $transactions, array $meta): void
     {
         [$view, $printerName] = match ($printer) {
-            'thermal' => ['print.thermal', config('printer.thermal')],
-            'dotmatrix' => ['print.dotmatrix', config('printer.dotmatrix')],
+            'thermal' => ['prints.thermal', config('printer.thermal')],
+            'dotmatrix' => ['prints.dotmatrix', config('printer.dotmatrix')],
             default => throw new \Exception('Printer tidak dikenali'),
         };
 
@@ -36,8 +36,10 @@ class NotaPrinter
 
     private function sendToPrinter(string $printerName, string $file): void
     {
-        if (PHP_OS_FAMILY !== 'Linux') {
-            Log::warning('Printing dilewati, OS bukan Linux');
+        if (!in_array(PHP_OS_FAMILY, ['Linux', 'Darwin'])) {
+            Log::warning('Printing dilewati, OS tidak didukung', [
+                'os' => PHP_OS_FAMILY
+            ]);
             return;
         }
 

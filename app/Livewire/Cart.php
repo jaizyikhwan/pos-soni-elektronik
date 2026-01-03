@@ -2,13 +2,10 @@
 
 namespace App\Livewire;
 
-use Carbon\Carbon;
 use App\Models\Item;
 use Livewire\Component;
 use App\Models\CartItem;
 use App\Models\Transaction;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\View;
 use App\Services\NotaPrinter;
 
 class Cart extends Component
@@ -28,22 +25,23 @@ class Cart extends Component
         'add-to-cart' => 'addFromOutside',
     ];
 
+    /* =========================
+        HITUNG TITIPAN
+    ========================== */
     public function updatedTitipan()
     {
         $titipan = intval(str_replace(['Rp', '.', ' '], '', $this->titipan));
 
-        if ($titipan < 0) {
-            $titipan = 0;
-        }
-
-        if ($titipan > $this->total) {
-            $titipan = $this->total;
-        }
+        if ($titipan < 0) $titipan = 0;
+        if ($titipan > $this->total) $titipan = $this->total;
 
         $this->titipan = $titipan;
         $this->sisa = $this->total - $titipan;
     }
 
+    /* =========================
+        HITUNG TOTAL
+    ========================== */
     private function calculateTotal()
     {
         $this->total = collect($this->cartItems)->sum(function ($item) {
@@ -56,26 +54,23 @@ class Cart extends Component
         $this->sisa = max(0, $this->total - intval($this->titipan));
     }
 
-
-    public function addFromOutside($payload)
-    {
-        $this->add($payload['itemId'], $payload['qty']);
-
-        return redirect()->route('cart.index');
-    }
-
+    /* =========================
+        LOAD CART
+    ========================== */
     public function loadCart()
     {
         $this->cartItems = CartItem::with('item')->get();
 
         foreach ($this->cartItems as $cartItem) {
 
+            // Harga default
             if (!isset($this->harga[$cartItem->id])) {
                 $this->harga[$cartItem->id] =
                     $cartItem->harga_manual
                     ?? $cartItem->item->harga_jual;
             }
 
+            // Qty default
             if (!isset($this->qty[$cartItem->id])) {
                 $this->qty[$cartItem->id] = $cartItem->quantity;
             }
@@ -87,6 +82,15 @@ class Cart extends Component
     public function mount()
     {
         $this->loadCart();
+    }
+
+    /* =========================
+        ADD ITEM
+    ========================== */
+    public function addFromOutside($payload)
+    {
+        $this->add($payload['itemId'], $payload['qty']);
+        return redirect()->route('cart.index');
     }
 
     public function add($itemId, $quantity)
@@ -111,21 +115,26 @@ class Cart extends Component
         }
 
         $this->loadCart();
-        session()->flash('success', 'Item berhasil ditambahkan ke keranjang.');
+        session()->flash('success', 'Item berhasil ditambahkan.');
     }
 
+    /* =========================
+        REMOVE ITEM
+    ========================== */
     public function remove($cartItemId)
     {
         $cartItem = CartItem::with('item')->findOrFail($cartItemId);
 
         $cartItem->item->increment('stok', $cartItem->quantity);
-
         $cartItem->delete();
 
         $this->loadCart();
         session()->flash('success', 'Barang berhasil dihapus.');
     }
 
+    /* =========================
+        UPDATE HARGA (OPTIONAL)
+    ========================== */
     public function updateHarga($id)
     {
         $cartItem = CartItem::with('item')->findOrFail($id);
@@ -142,19 +151,16 @@ class Cart extends Component
         ]);
 
         $this->loadCart();
-        $this->calculateTotal();
-
-        session()->flash('success', 'Harga berhasil diperbarui.');
+        session()->flash('success', 'Harga disimpan.');
     }
 
+    /* =========================
+        UPDATE QTY
+    ========================== */
     public function updateQty($id)
     {
         $cartItem = CartItem::with('item')->findOrFail($id);
-        $qty = intval($this->qty[$id]);
-
-        if ($qty < 1) {
-            $qty = 1;
-        }
+        $qty = max(1, intval($this->qty[$id]));
 
         $available = $cartItem->item->stok + $cartItem->quantity;
 
@@ -172,52 +178,55 @@ class Cart extends Component
             $cartItem->item->increment('stok', abs($diff));
         }
 
-        $cartItem->update([
-            'quantity' => $qty
-        ]);
+        $cartItem->update(['quantity' => $qty]);
 
         $this->loadCart();
-        $this->calculateTotal();
     }
 
+    /* =========================
+        CHECKOUT (FIXED)
+    ========================== */
     private function processCheckout(string $printer)
     {
         $this->validate([
-            'nama_pembeli' => 'required|string|max:255',
-            'no_hp' => 'required|string|max:20',
-            'alamat' => 'required|string',
+            'nama_pembeli' => 'required',
+            'no_hp'        => 'required',
+            'alamat'       => 'required',
         ]);
-
-        foreach ($this->cartItems as $cartItem) {
-            if ($cartItem->harga_manual === null) {
-                session()->flash('error', 'Semua item harus diisi harga.');
-                return;
-            }
-        }
 
         $transactions = [];
         $total = 0;
 
         foreach ($this->cartItems as $cartItem) {
-            $item = $cartItem->item;
 
-            if ($cartItem->harga_manual < $item->harga_beli) {
+            $harga = intval($this->harga[$cartItem->id] ?? 0);
+
+            if ($harga <= 0) {
+                session()->flash('error', 'Semua item harus diisi harga.');
+                return;
+            }
+
+            if ($harga < $cartItem->item->harga_beli) {
                 session()->flash('error', 'Harga jual tidak boleh di bawah harga kulak.');
                 return;
             }
 
+            $cartItem->update([
+                'harga_manual' => $harga
+            ]);
+
             $trx = Transaction::create([
-                'item_id' => $item->id,
-                'nama_pembeli' => $this->nama_pembeli,
-                'no_hp' => $this->no_hp,
-                'alamat' => $this->alamat,
-                'jumlah' => $cartItem->quantity,
-                'harga_satuan' => $cartItem->harga_manual,
-                'total_harga' => $cartItem->harga_manual * $cartItem->quantity,
-                'nomor_seri' => $this->nomorSeri[$cartItem->id] ?? null,
-                'tanggal' => now()->toDateString(),
-                'titipan' => $this->titipan,
-                'sisa_pembayaran' => $this->sisa,
+                'item_id'           => $cartItem->item_id,
+                'nama_pembeli'      => $this->nama_pembeli,
+                'no_hp'             => $this->no_hp,
+                'alamat'            => $this->alamat,
+                'jumlah'            => $cartItem->quantity,
+                'harga_satuan'      => $harga,
+                'total_harga'       => $harga * $cartItem->quantity,
+                'nomor_seri'        => $this->nomorSeri[$cartItem->id] ?? null,
+                'tanggal'           => now()->toDateString(),
+                'titipan'           => $this->titipan,
+                'sisa_pembayaran'   => $this->sisa,
                 'status_pembayaran' => $this->sisa > 0 ? 'DP' : 'LUNAS',
             ]);
 
@@ -227,23 +236,19 @@ class Cart extends Component
 
         CartItem::truncate();
 
-        app(NotaPrinter::class)->print(
-            $printer,
-            $transactions,
-            [
-                'tanggal'      => now()->format('d M Y'),
-                'nama_pembeli' => $this->nama_pembeli,
-                'no_hp'        => $this->no_hp,
-                'alamat'       => $this->alamat,
-                'total'        => $total,
-                'titipan'      => $this->titipan,
-                'sisa'         => $this->sisa,
-                'status'       => $this->sisa > 0 ? 'DP' : 'LUNAS',
-            ]
-        );
+        app(NotaPrinter::class)->print($printer, $transactions, [
+            'tanggal' => now()->format('d M Y'),
+            'nama_pembeli' => $this->nama_pembeli,
+            'no_hp' => $this->no_hp,
+            'alamat' => $this->alamat,
+            'total' => $total,
+            'titipan' => $this->titipan,
+            'sisa' => $this->sisa,
+            'status' => $this->sisa > 0 ? 'DP' : 'LUNAS',
+        ]);
 
-        $this->dispatch('transaction-created');
         session()->flash('success', 'Checkout berhasil.');
+        $this->dispatch('transaction-created');
     }
 
     public function checkout(string $printer)

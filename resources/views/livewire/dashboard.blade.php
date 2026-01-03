@@ -1,5 +1,4 @@
-<div class="md:pb-0 pb-40">
-
+<div class="overflow-y-auto">
     <!-- ================= RINGKASAN BULAN INI ================= -->
     <div class="max-w-7xl mx-auto px-4 mt-4 mb-4">
         <div class="flex items-center justify-between">
@@ -130,122 +129,120 @@
         </div>
     </div>
 
-</div>
 
+    @script
+        <script>
+            let lineChart;
 
-@script
-    <script>
-        let lineChart;
+            function cssVar(name) {
+                return getComputedStyle(document.documentElement)
+                    .getPropertyValue(name)
+                    .trim();
+            }
 
-        function cssVar(name) {
-            return getComputedStyle(document.documentElement)
-                .getPropertyValue(name)
-                .trim();
-        }
+            function hexToRgba(hex, alpha) {
+                if (!hex.startsWith('#')) return hex;
+                const bigint = parseInt(hex.slice(1), 16);
+                const r = (bigint >> 16) & 255;
+                const g = (bigint >> 8) & 255;
+                const b = bigint & 255;
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            }
 
-        function hexToRgba(hex, alpha) {
-            if (!hex.startsWith('#')) return hex;
-            const bigint = parseInt(hex.slice(1), 16);
-            const r = (bigint >> 16) & 255;
-            const g = (bigint >> 8) & 255;
-            const b = bigint & 255;
-            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        }
+            function renderLineChart() {
+                const canvas = document.getElementById('lineChart');
+                if (!canvas) return;
 
-        function renderLineChart() {
-            const canvas = document.getElementById('lineChart');
-            if (!canvas) return;
+                const ctx = canvas.getContext('2d');
 
-            const ctx = canvas.getContext('2d');
+                if (lineChart) lineChart.destroy();
 
-            if (lineChart) lineChart.destroy();
+                const accent = cssVar('--color-accent');
+                const zinc400 = cssVar('--color-zinc-400');
+                const zinc600 = cssVar('--color-zinc-600');
+                const zinc800 = cssVar('--color-zinc-800');
 
-            const accent = cssVar('--color-accent');
-            const zinc400 = cssVar('--color-zinc-400');
-            const zinc600 = cssVar('--color-zinc-600');
-            const zinc800 = cssVar('--color-zinc-800');
-
-            lineChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: @json($labels),
-                    datasets: [{
-                        label: 'Keuntungan (Rp)',
-                        data: @json($data),
-                        borderColor: accent,
-                        backgroundColor: hexToRgba(accent, 0.2),
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
-                        pointBackgroundColor: accent,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
+                lineChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: @json($labels),
+                        datasets: [{
+                            label: 'Keuntungan (Rp)',
+                            data: @json($data),
+                            borderColor: accent,
+                            backgroundColor: hexToRgba(accent, 0.2),
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: accent,
+                        }]
                     },
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: zinc600
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: zinc600
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: cssVar('--color-zinc-100'),
+                                titleColor: zinc800,
+                                bodyColor: zinc800,
+                                borderWidth: 1,
+                                borderColor: cssVar('--color-zinc-200'),
+                                callbacks: {
+                                    label: ctx => 'Rp ' + ctx.parsed.y.toLocaleString('id-ID')
+                                }
                             }
                         },
-                        tooltip: {
-                            backgroundColor: cssVar('--color-zinc-100'),
-                            titleColor: zinc800,
-                            bodyColor: zinc800,
-                            borderWidth: 1,
-                            borderColor: cssVar('--color-zinc-200'),
-                            callbacks: {
-                                label: ctx => 'Rp ' + ctx.parsed.y.toLocaleString('id-ID')
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            ticks: {
-                                color: zinc400
+                        scales: {
+                            x: {
+                                ticks: {
+                                    color: zinc400
+                                },
+                                grid: {
+                                    color: cssVar('--color-zinc-200'),
+                                    drawBorder: false
+                                }
                             },
-                            grid: {
-                                color: cssVar('--color-zinc-200'),
-                                drawBorder: false
-                            }
-                        },
-                        y: {
-                            ticks: {
-                                color: zinc400,
-                                callback: value => 'Rp ' + value.toLocaleString('id-ID')
-                            },
-                            grid: {
-                                color: cssVar('--color-zinc-200'),
-                                drawBorder: false
+                            y: {
+                                ticks: {
+                                    color: zinc400,
+                                    callback: value => 'Rp ' + value.toLocaleString('id-ID')
+                                },
+                                grid: {
+                                    color: cssVar('--color-zinc-200'),
+                                    drawBorder: false
+                                }
                             }
                         }
                     }
-                }
-            });
-        }
+                });
+            }
 
-        document.addEventListener('DOMContentLoaded', () => renderLineChart());
+            document.addEventListener('DOMContentLoaded', () => renderLineChart());
 
-        document.addEventListener('livewire:navigated', () => {
-            renderLineChart();
-        });
-
-        Livewire.hook('commit', ({
-            succeed
-        }) => {
-            succeed(() => {
+            document.addEventListener('livewire:navigated', () => {
                 renderLineChart();
             });
-        });
 
-        window.addEventListener('flux-theme-changed', () => {
-            renderLineChart();
-        });
-    </script>
-@endscript
+            Livewire.hook('commit', ({
+                succeed
+            }) => {
+                succeed(() => {
+                    renderLineChart();
+                });
+            });
+
+            window.addEventListener('flux-theme-changed', () => {
+                renderLineChart();
+            });
+        </script>
+    @endscript

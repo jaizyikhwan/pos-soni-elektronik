@@ -1,4 +1,6 @@
+<?php
+
 return [
-'thermal' => env('PRINTER_THERMAL', 'THERMAL_POS'),
-'dotmatrix' => env('PRINTER_DOTMATRIX', 'EPSON_L5290_Series'),
+    'thermal'   => env('PRINTER_THERMAL', 'THERMAL_PRINTER'),
+    'dotmatrix' => env('PRINTER_DOTMATRIX', 'DOTMATRIX_PRINTER'),
 ];
