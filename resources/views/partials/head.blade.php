@@ -10,7 +10,6 @@
 <link rel="preconnect" href="https://fonts.bunny.net">
 <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 
-
 {{-- Google Font Inter --}}
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
@@ -22,6 +21,9 @@
 
 {{-- HTML5 QR Code --}}
 <script src="https://unpkg.com/html5-qrcode" defer></script>
+
+{{-- QZ Tray --}}
+<script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.5/qz-tray.min.js"></script>
 
 @vite(['resources/css/app.css', 'resources/js/app.js'])
 @fluxAppearance

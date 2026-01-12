@@ -49,22 +49,26 @@ class History extends Component
             return;
         }
 
-        app(NotaPrinter::class)->print(
-            $printer,
-            [$this->selectedTransaction],
-            [
-                'tanggal'      => $this->selectedTransaction->tanggal,
-                'nama_pembeli' => $this->selectedTransaction->nama_pembeli,
-                'no_hp'        => $this->selectedTransaction->no_hp,
-                'alamat'       => $this->selectedTransaction->alamat,
-                'total'        => $this->selectedTransaction->total_harga,
-                'titipan'      => $this->selectedTransaction->titipan ?? 0,
-                'sisa'         => $this->selectedTransaction->sisa_pembayaran ?? 0,
-                'status'       => $this->selectedTransaction->status_pembayaran ?? 'LUNAS',
-            ]
-        );
+        // Dispatch event ke frontend
+        $this->dispatch('print-receipt', [
+            'printer'      => $printer,
+            'pembeli'      => $this->selectedTransaction->nama_pembeli,
+            'no_hp'        => $this->selectedTransaction->no_hp,
+            'alamat'       => $this->selectedTransaction->alamat,
+            'items'        => [[
+                'nama_barang' => $this->selectedTransaction->item->nama_barang,
+                'quantity'    => $this->selectedTransaction->jumlah,
+                'harga_satuan' => $this->selectedTransaction->harga_satuan,
+                'total'       => $this->selectedTransaction->total_harga,
+            ]],
+            'total'        => $this->selectedTransaction->total_harga,
+            'titipan'      => $this->selectedTransaction->titipan ?? 0,
+            'sisa'         => $this->selectedTransaction->sisa_pembayaran ?? 0,
+            'status'       => $this->selectedTransaction->status_pembayaran ?? 'LUNAS',
+            'tanggal'      => $this->selectedTransaction->tanggal,
+        ]);
 
-        session()->flash('success', 'Nota berhasil dicetak ulang.');
+        session()->flash('success', 'Mengirim ke printer...');
     }
 
     public function cancelTransaction($id)

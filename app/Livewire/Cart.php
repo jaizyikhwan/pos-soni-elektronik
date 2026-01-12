@@ -6,7 +6,6 @@ use App\Models\Item;
 use Livewire\Component;
 use App\Models\CartItem;
 use App\Models\Transaction;
-use App\Services\NotaPrinter;
 
 class Cart extends Component
 {
@@ -186,7 +185,7 @@ class Cart extends Component
     /* =========================
         CHECKOUT (FIXED)
     ========================== */
-    private function processCheckout(string $printer)
+    private function processCheckout()
     {
         $this->validate([
             'nama_pembeli' => 'required',
@@ -194,26 +193,15 @@ class Cart extends Component
             'alamat'       => 'required',
         ]);
 
-        $transactions = [];
-        $total = 0;
+        $createdTransactions = collect();
 
         foreach ($this->cartItems as $cartItem) {
 
             $harga = intval($this->harga[$cartItem->id] ?? 0);
 
-            if ($harga <= 0) {
-                session()->flash('error', 'Semua item harus diisi harga.');
-                return;
+            if ($harga <= 0 || $harga < $cartItem->item->harga_beli) {
+                throw new \Exception("Harga tidak valid untuk item: {$cartItem->item->nama_barang}");
             }
-
-            if ($harga < $cartItem->item->harga_beli) {
-                session()->flash('error', 'Harga jual tidak boleh di bawah harga kulak.');
-                return;
-            }
-
-            $cartItem->update([
-                'harga_manual' => $harga
-            ]);
 
             $trx = Transaction::create([
                 'item_id'           => $cartItem->item_id,
@@ -225,35 +213,88 @@ class Cart extends Component
                 'total_harga'       => $harga * $cartItem->quantity,
                 'nomor_seri'        => $this->nomorSeri[$cartItem->id] ?? null,
                 'tanggal'           => now()->toDateString(),
-                'titipan'           => $this->titipan,
-                'sisa_pembayaran'   => $this->sisa,
+                'titipan'           => intval($this->titipan),
+                'sisa_pembayaran'   => max(0, $this->total - intval($this->titipan)),
                 'status_pembayaran' => $this->sisa > 0 ? 'DP' : 'LUNAS',
             ]);
 
-            $transactions[] = $trx;
-            $total += $trx->total_harga;
+            $createdTransactions->push($trx);
         }
 
+        // Hapus semua item di cart
         CartItem::truncate();
 
-        app(NotaPrinter::class)->print($printer, $transactions, [
-            'tanggal' => now()->format('d M Y'),
-            'nama_pembeli' => $this->nama_pembeli,
-            'no_hp' => $this->no_hp,
-            'alamat' => $this->alamat,
-            'total' => $total,
-            'titipan' => $this->titipan,
-            'sisa' => $this->sisa,
-            'status' => $this->sisa > 0 ? 'DP' : 'LUNAS',
-        ]);
-
-        session()->flash('success', 'Checkout berhasil.');
-        $this->dispatch('transaction-created');
+        return $createdTransactions;
     }
 
-    public function checkout(string $printer)
+
+    public function checkout($printerType = 'thermal')
     {
-        $this->processCheckout($printer);
+        $this->validate();
+
+        if (empty($this->cartItems)) {
+            session()->flash('error', 'Keranjang barang kosong');
+            return;
+        }
+
+        // 1. Simpan transaksi
+        foreach ($this->cartItems as $item) {
+            Transaction::create([
+                'item_id'           => $item['id'],
+                'jumlah'            => $item['quantity'],
+                'harga_satuan'      => $item['harga_jual'],
+                'total_harga'       => $item['quantity'] * $item['harga_jual'],
+                'nomor_seri'        => $item['nomor_seri'] ?? null,
+                'tanggal'           => $this->tanggal ?? now(),
+                'nama_pembeli'      => $this->nama_pembeli,
+                'no_hp'             => $this->no_hp,
+                'alamat'            => $this->alamat,
+                'titipan'           => $this->titipan ?? 0,
+                'sisa_pembayaran'   => max(0, ($item['quantity'] * $item['harga_jual']) - ($this->titipan ?? 0)),
+                'status_pembayaran' => ($this->titipan ?? 0) > 0 ? 'DP' : 'LUNAS',
+                'status'            => 'VALID',
+            ]);
+        }
+
+        $transactions = Transaction::latest()->take(count($this->cartItems))->get()->load('item');
+
+        // 2. Hitung ulang total, sisa, dsb
+        $total = $transactions->sum('total_harga');
+        $titipan = intval($this->titipan);
+        $sisa = max(0, $total - $titipan);
+
+        // 3. Format items dengan struktur yang konsisten
+        $formattedItems = $transactions->map(function ($transaction) {
+            return [
+                'id'              => $transaction->id,
+                'nama_barang'     => $transaction->item->nama_barang,
+                'tipe_barang'     => $transaction->item->tipe_barang,
+                'quantity'        => $transaction->jumlah,
+                'harga_satuan'    => $transaction->harga_satuan,
+                'total'           => $transaction->total_harga,
+                'nomor_seri'      => $transaction->nomor_seri,
+            ];
+        })->toArray();
+
+        // 4. Dispatch event dengan payload terstruktur
+        $this->dispatch('print-receipt', [
+            'printer'     => $printerType,
+            'pembeli'     => $this->nama_pembeli,
+            'no_hp'       => $this->no_hp,
+            'alamat'      => $this->alamat,
+            'items'       => $formattedItems,
+            'total'       => $total,
+            'titipan'     => $titipan,
+            'sisa'        => $sisa,
+            'status'      => $sisa > 0 ? 'DP' : 'LUNAS',
+            'tanggal'     => $this->tanggal ?? now()->format('d M Y'),
+        ]);
+
+        // 5. Reset cart
+        $this->reset(['cartItems', 'harga', 'qty', 'nomorSeri', 'total', 'titipan', 'sisa']);
+        $this->loadCart();
+
+        session()->flash('success', 'Checkout berhasil, mencetak nota...');
     }
 
     public function render()

@@ -196,3 +196,43 @@
     </div>
 
 </div>
+
+<script>
+    document.addEventListener('livewire:init', () => {
+        Livewire.on('print-receipt', async (event) => {
+            const payload = event[0];
+            console.log("📋 Print event received:", payload);
+
+            const printBtn = document.querySelector('[data-printer="' + payload.printer + '"]');
+
+            try {
+                if (printBtn) {
+                    printBtn.disabled = true;
+                    printBtn.textContent = 'Memproses...';
+                }
+
+                const {
+                    printWithQZTray
+                } = await import('/resources/js/printer.js');
+                const result = await printWithQZTray(payload);
+
+                if (result.success) {
+                    console.log("✓ Print successful");
+                    alert(result.message);
+                } else {
+                    console.error("✗ Print failed:", result.message);
+                    alert(result.message);
+                }
+            } catch (error) {
+                console.error('❌ Print execution error:', error);
+                alert(`Error: ${error.message}`);
+            } finally {
+                if (printBtn) {
+                    printBtn.disabled = false;
+                    printBtn.textContent = 'Print ' +
+                        (payload.printer === 'thermal' ? 'Thermal' : 'Dotmatrix');
+                }
+            }
+        });
+    });
+</script>

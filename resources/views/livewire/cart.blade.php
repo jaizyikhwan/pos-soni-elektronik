@@ -135,7 +135,8 @@
 
                             <td class="px-6 py-4 text-center">
                                 <div class="flex justify-center gap-2">
-                                    <input type="number" min="1" wire:model.lazy="qty.{{ $cartItem->id }}"
+                                    <input type="number" min="1"
+                                        wire:model.debounce.300ms="qty.{{ $cartItem->id }}"
                                         class="w-16 px-2 py-1 rounded-lg border border-zinc-300 dark:border-zinc-700 text-sm">
 
                                     <button wire:click="updateQty({{ $cartItem->id }})" class="text-accent text-sm">
@@ -145,9 +146,8 @@
                             </td>
 
                             <td class="px-6 py-4 text-center">
-                                <button wire:click="remove({{ $cartItem->id }})"
-                                    onclick="return confirm('Hapus barang dari keranjang?')"
-                                    class="text-red-500 text-sm">
+                                <button wire:click.prevent="remove({{ $cartItem->id }})"
+                                    x-on:click="if(!confirm('Hapus barang?')) return;" class="text-red-500 text-sm">
                                     Hapus
                                 </button>
                             </td>
@@ -202,12 +202,12 @@
             </div>
 
             <div class="flex flex-col md:flex-row gap-3">
-                <button wire:click="checkout('dotmatrix')"
+                <button wire:click="checkout('dotmatrix')" data-printer="dotmatrix"
                     class="flex-1 py-3 rounded-xl bg-accent text-white font-semibold">
                     Cetak Dotmatrix
                 </button>
 
-                <button wire:click="checkout('thermal')"
+                <button wire:click="checkout('thermal')" data-printer="thermal"
                     class="flex-1 py-3 rounded-xl bg-zinc-700 text-white font-semibold">
                     Cetak Thermal
                 </button>
@@ -216,3 +216,61 @@
 
     @endif
 </div>
+
+<script>
+    document.addEventListener('livewire:init', () => {
+        Livewire.on('print-receipt', async (event) => {
+            const payload = event[0];
+            console.log("📋 Print event received:", payload);
+
+            const printBtn = document.querySelector('[data-printer="' + payload.printer + '"]');
+
+            try {
+                // Show loading feedback
+                if (printBtn) {
+                    printBtn.disabled = true;
+                    printBtn.textContent = 'Memproses...';
+                }
+
+                // ✅ Import dengan error handling
+                try {
+                    const {
+                        printWithQZTray
+                    } = await import('/resources/js/printer.js');
+                    const result = await printWithQZTray(payload);
+
+                    if (result.success) {
+                        console.log("✓ Print successful");
+                        // Gunakan notification yang lebih baik (Flux/Toast)
+                        alert(result.message);
+                    } else {
+                        console.error("✗ Print failed:", result.message);
+                        alert(result.message);
+                    }
+                } catch (importError) {
+                    console.error("Import error:", importError);
+                    alert("Error: Printer module tidak bisa di-load");
+                }
+
+            } catch (error) {
+                console.error('❌ Print execution error:', error);
+                alert(`Error: ${error.message}`);
+
+            } finally {
+                // Reset button state
+                if (printBtn) {
+                    printBtn.disabled = false;
+                    printBtn.textContent = 'Cetak ' +
+                        (payload.printer === 'thermal' ? 'Thermal' : 'Dotmatrix');
+                }
+
+                // ✓ Timeout insurance (30 detik)
+                setTimeout(() => {
+                    if (printBtn) {
+                        printBtn.disabled = false;
+                    }
+                }, 30000);
+            }
+        });
+    });
+</script>
