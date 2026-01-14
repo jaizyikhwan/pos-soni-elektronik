@@ -52,20 +52,21 @@ class History extends Component
         // Dispatch event ke frontend
         $this->dispatch('print-receipt', [
             'printer'      => $printer,
-            'pembeli'      => $this->selectedTransaction->nama_pembeli,
-            'no_hp'        => $this->selectedTransaction->no_hp,
-            'alamat'       => $this->selectedTransaction->alamat,
+            'pembeli'      => $this->selectedTransaction->nama_pembeli ?? 'N/A',
+            'no_hp'        => $this->selectedTransaction->no_hp ?? '',
+            'alamat'       => $this->selectedTransaction->alamat ?? '',
             'items'        => [[
-                'nama_barang' => $this->selectedTransaction->item->nama_barang,
-                'quantity'    => $this->selectedTransaction->jumlah,
-                'harga_satuan' => $this->selectedTransaction->harga_satuan,
-                'total'       => $this->selectedTransaction->total_harga,
+                'nama_barang'   => $this->selectedTransaction->item->nama_barang ?? 'N/A',
+                'quantity'      => (int) $this->selectedTransaction->jumlah,
+                'harga_satuan'  => (int) $this->selectedTransaction->harga_satuan,
+                'total'         => (int) $this->selectedTransaction->total_harga,
+                'nomor_seri'    => $this->selectedTransaction->nomor_seri ?? '',
             ]],
-            'total'        => $this->selectedTransaction->total_harga,
-            'titipan'      => $this->selectedTransaction->titipan ?? 0,
-            'sisa'         => $this->selectedTransaction->sisa_pembayaran ?? 0,
+            'total'        => (int) $this->selectedTransaction->total_harga,
+            'titipan'      => (int) ($this->selectedTransaction->titipan ?? 0),
+            'sisa'         => (int) ($this->selectedTransaction->sisa_pembayaran ?? 0),
             'status'       => $this->selectedTransaction->status_pembayaran ?? 'LUNAS',
-            'tanggal'      => $this->selectedTransaction->tanggal,
+            'tanggal'      => $this->selectedTransaction->tanggal?->format('d M Y') ?? now()->format('d M Y'),
         ]);
 
         session()->flash('success', 'Mengirim ke printer...');

@@ -1,22 +1,33 @@
 // ✅ PERBAIKAN 0: Validate payload
 function validatePayload(payload) {
-    if (!payload.items || !Array.isArray(payload.items)) {
-        throw new Error("Invalid payload: items harus array");
+    const required = ["items", "printer", "pembeli", "total", "tanggal"];
+
+    for (const field of required) {
+        if (!payload[field]) {
+            throw new Error(`❌ Payload missing required field: ${field}`);
+        }
     }
 
-    if (payload.items.length === 0) {
-        throw new Error("Tidak ada barang untuk dicetak");
+    if (!Array.isArray(payload.items) || payload.items.length === 0) {
+        throw new Error("❌ Items harus array yang tidak kosong");
     }
 
-    if (
-        !payload.printer ||
-        !["thermal", "dotmatrix"].includes(payload.printer)
-    ) {
-        throw new Error("Invalid printer type");
+    if (!["thermal", "dotmatrix"].includes(payload.printer)) {
+        throw new Error("❌ Printer type harus 'thermal' atau 'dotmatrix'");
     }
+
+    // Validasi setiap item
+    payload.items.forEach((item, idx) => {
+        if (!item.nama_barang || !item.quantity || !item.total) {
+            throw new Error(
+                `❌ Item ${idx}: nama_barang, quantity, total wajib ada`
+            );
+        }
+    });
 
     return true;
 }
+
 // Generate format untuk Thermal (POS-58)
 function generateThermalFormat(payload) {
     validatePayload(payload);
@@ -41,23 +52,30 @@ function generateThermalFormat(payload) {
     t += "───────────────────────────\n";
 
     payload.items.forEach((item) => {
-        const nama = (item.nama_barang || item.nama || "")
-            .substring(0, 15)
-            .padEnd(15);
-        const qty = String(item.quantity).padStart(3);
-        const total = String(item.total).padStart(8);
+        const nama = (item.nama_barang || "").substring(0, 15).padEnd(15);
+        const qty = String(item.quantity || 0).padStart(3);
+        const total = String(item.total || 0).padStart(8);
         t += `${nama}${qty}${total}\n`;
     });
 
     t += "───────────────────────────\n";
-    t += `TOTAL: Rp ${String(payload.total).padStart(20)}\n`;
-    t += `TITIPAN: Rp ${String(payload.titipan).padStart(16)}\n`;
-    t += `SISA: Rp ${String(payload.sisa).padStart(20)}\n`;
+    t += `TOTAL: Rp ${String(payload.total || 0).padStart(15)}\n`;
+    if (payload.titipan > 0) {
+        t += `TITIPAN: Rp ${String(payload.titipan).padStart(13)}\n`;
+        t += `SISA: Rp ${String(payload.sisa || 0).padStart(17)}\n`;
+    }
     t += "═══════════════════════════\n";
     t += `STATUS: ${payload.status}\n`;
     t += "Terima Kasih!\n\n\n\n";
 
     t += esc + "i"; // Cut paper
+
+    console.log("🖨️ [THERMAL] Generated data:", {
+        length: t.length,
+        preview: t.substring(0, 100),
+        itemCount: payload.items.length,
+    });
+
     return t;
 }
 
@@ -79,20 +97,34 @@ function generateDotMatrixFormat(payload) {
     t += "----------------------------------------\n";
 
     payload.items.forEach((item) => {
-        const name = item.nama_barang.padEnd(20).substring(0, 20);
-        const qty = String(item.quantity).padStart(3);
-        const harga = String(item.harga_satuan).padStart(7);
-        const total = String(item.total).padStart(9);
+        const name = (item.nama_barang || "").padEnd(20).substring(0, 20);
+        const qty = String(item.quantity || 0).padStart(3);
+        const harga = String(item.harga_satuan || 0).padStart(7);
+        const total = String(item.total || 0).padStart(9);
         t += `${name}${qty}${harga}${total}\n`;
     });
 
     t += "----------------------------------------\n";
-    t += `TOTAL                      ${String(payload.total).padStart(9)}\n`;
-    t += `TITIPAN                    ${String(payload.titipan).padStart(9)}\n`;
-    t += `SISA                       ${String(payload.sisa).padStart(9)}\n`;
+    t += `TOTAL                      ${String(payload.total || 0).padStart(
+        9
+    )}\n`;
+    if (payload.titipan > 0) {
+        t += `TITIPAN                    ${String(payload.titipan).padStart(
+            9
+        )}\n`;
+        t += `SISA                       ${String(payload.sisa || 0).padStart(
+            9
+        )}\n`;
+    }
     t += "========================================\n";
     t += `STATUS: ${payload.status}\n`;
     t += "Terima Kasih!\n\n";
+
+    console.log("🖨️ [DOTMATRIX] Generated data:", {
+        length: t.length,
+        preview: t.substring(0, 100),
+        itemCount: payload.items.length,
+    });
 
     return t;
 }
@@ -135,35 +167,36 @@ async function connectQZTray(maxRetries = 3) {
 
 // ✅ PERBAIKAN 3: Better printer validation
 function findPrinterByType(type, availablePrinters) {
-    const printerMapping = {
-        thermal: ["POS", "58", "THERMAL", "INFORCE"],
-        dotmatrix: ["EPSON", "DOT", "MATRIX", "L5290"],
+    const searchTerms = {
+        thermal: ["thermal", "pos", "xprinter", "zjiang", "58mm"],
+        dotmatrix: ["dotmatrix", "epson", "lx", "fx", "impact"],
     };
 
-    const keywords = printerMapping[type] || [];
-    const found = availablePrinters.find((p) =>
-        keywords.some((kw) => p.toUpperCase().includes(kw))
-    );
+    const terms = searchTerms[type] || [];
 
-    if (!found) {
-        console.warn(
-            `Printer ${type} tidak ditemukan. Printer tersedia:`,
-            availablePrinters
+    // Cari berdasarkan nama printer
+    for (const term of terms) {
+        const found = availablePrinters.find((p) =>
+            p.toLowerCase().includes(term.toLowerCase())
         );
+        if (found) {
+            console.log(`✓ Found ${type} printer: ${found}`);
+            return found;
+        }
     }
 
-    return found;
+    console.warn(`⚠️ ${type} printer not found, akan gunakan default`);
+    return null;
 }
 
-// ✅ PERBAIKAN 4: Enhanced export function
+// ✅ PERBAIKAN: Proper QZ Tray print configuration
 export async function printWithQZTray(payload) {
     let connected = false;
 
     try {
         console.log("🖨️ Starting print process for:", payload.printer);
-        connected = await connectQZTray();
 
-        // 1. Koneksi dengan retry
+        // 1. Koneksi (hanya sekali!)
         connected = await connectQZTray();
 
         // 2. Dapatkan daftar printer
@@ -175,7 +208,7 @@ export async function printWithQZTray(payload) {
         console.log("📋 Available printers:", availablePrinters);
 
         // 3. Cari printer sesuai tipe
-        const printerType = payload.printer; // 'thermal' atau 'dotmatrix'
+        const printerType = payload.printer;
         let selectedPrinter = findPrinterByType(printerType, availablePrinters);
 
         if (!selectedPrinter) {
@@ -199,17 +232,19 @@ export async function printWithQZTray(payload) {
 
         console.log(`✓ Print data generated (${printData.length} bytes)`);
 
-        // 5. Konfigurasi print
+        // 5. ✅ PERBAIKAN: Proper QZ Tray config
         const config = [
             {
                 type: "raw",
                 format: "plain",
                 data: printData,
+                endOfDocument: true, // ← PENTING untuk raw printing
             },
         ];
 
-        // 6. Execute print
-        await qz.print({ printer: selectedPrinter }, config);
+        // 6. Set printer dan execute print
+        await qz.printers.find(selectedPrinter);
+        await qz.print(config);
 
         console.log("✓ Print job sent successfully");
         return {
@@ -222,17 +257,18 @@ export async function printWithQZTray(payload) {
         console.error("❌ Print Error:", error);
         return {
             success: false,
-            message: `❌ Error: ${error.message}`,
+            message: `❌ Error: ${errorMsg}`,
             error: error,
         };
     } finally {
         if (connected) {
             try {
-                if (qz.websocket.isActive()) {
+                if (qz && qz.websocket && qz.websocket.isActive?.()) {
                     await qz.websocket.disconnect();
+                    console.log("✓ QZ Tray disconnected");
                 }
             } catch (e) {
-                console.warn("Disconnect warning:", e.message);
+                console.warn("⚠️ Disconnect warning:", e?.message);
             }
         }
     }
