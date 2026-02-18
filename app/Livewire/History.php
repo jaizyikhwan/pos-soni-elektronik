@@ -66,7 +66,11 @@ class History extends Component
             'titipan'      => (int) ($this->selectedTransaction->titipan ?? 0),
             'sisa'         => (int) ($this->selectedTransaction->sisa_pembayaran ?? 0),
             'status'       => $this->selectedTransaction->status_pembayaran ?? 'LUNAS',
-            'tanggal'      => $this->selectedTransaction->tanggal?->format('d M Y') ?? now()->format('d M Y'),
+            'tanggal'      => (
+                $this->selectedTransaction->tanggal
+                ? \Carbon\Carbon::parse($this->selectedTransaction->tanggal)->format('d M Y')
+                : now()->format('d M Y')
+            ),
         ]);
 
         session()->flash('success', 'Mengirim ke printer...');

@@ -22,6 +22,13 @@ class Transaction extends Model
         'status',
     ];
 
+    /**
+     * Casts ensure `tanggal` is treated as a Carbon instance when accessed.
+     */
+    protected $casts = [
+        'tanggal' => 'date',
+    ];
+
     public function item()
     {
         return $this->belongsTo(Item::class);

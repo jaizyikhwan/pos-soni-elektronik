@@ -232,24 +232,25 @@
                     printBtn.textContent = 'Memproses...';
                 }
 
-                // ✅ Import dengan error handling
+                // direct call to global printer function (loaded via app.js)
                 try {
-                    const {
-                        printWithQZTray
-                    } = await import('/resources/js/printer.js');
-                    const result = await printWithQZTray(payload);
+                    if (typeof window.printWithQZTray !== 'function') {
+                        throw new Error(
+                            'Printer module belum tersedia. Pastikan JavaScript sudah dimuat.');
+                    }
+
+                    const result = await window.printWithQZTray(payload);
 
                     if (result.success) {
                         console.log("✓ Print successful");
-                        // Gunakan notification yang lebih baik (Flux/Toast)
                         alert(result.message);
                     } else {
                         console.error("✗ Print failed:", result.message);
                         alert(result.message);
                     }
-                } catch (importError) {
-                    console.error("Import error:", importError);
-                    alert("Error: Printer module tidak bisa di-load");
+                } catch (error) {
+                    console.error("✗ Print error:", error);
+                    alert(error.message || "Error saat mencetak");
                 }
 
             } catch (error) {

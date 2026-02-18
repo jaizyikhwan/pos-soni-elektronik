@@ -20,7 +20,7 @@ function validatePayload(payload) {
     payload.items.forEach((item, idx) => {
         if (!item.nama_barang || !item.quantity || !item.total) {
             throw new Error(
-                `❌ Item ${idx}: nama_barang, quantity, total wajib ada`
+                `❌ Item ${idx}: nama_barang, quantity, total wajib ada`,
             );
         }
     });
@@ -106,14 +106,14 @@ function generateDotMatrixFormat(payload) {
 
     t += "----------------------------------------\n";
     t += `TOTAL                      ${String(payload.total || 0).padStart(
-        9
+        9,
     )}\n`;
     if (payload.titipan > 0) {
         t += `TITIPAN                    ${String(payload.titipan).padStart(
-            9
+            9,
         )}\n`;
         t += `SISA                       ${String(payload.sisa || 0).padStart(
-            9
+            9,
         )}\n`;
     }
     t += "========================================\n";
@@ -133,7 +133,7 @@ function generateDotMatrixFormat(payload) {
 async function validateQZTray() {
     if (typeof qz === "undefined") {
         throw new Error(
-            "QZ-Tray belum ter-load. Pastikan CDN sudah accessible."
+            "QZ-Tray belum ter-load. Pastikan CDN sudah accessible.",
         );
     }
     return true;
@@ -153,7 +153,7 @@ async function connectQZTray(maxRetries = 3) {
         } catch (e) {
             console.warn(
                 `Connection attempt ${attempt + 1}/${maxRetries} failed:`,
-                e.message
+                e.message,
             );
             if (attempt < maxRetries - 1) {
                 await new Promise((r) => setTimeout(r, 1500));
@@ -161,14 +161,61 @@ async function connectQZTray(maxRetries = 3) {
         }
     }
     throw new Error(
-        "QZ-Tray connection failed setelah 3 percobaan. Pastikan aplikasi QZ-Tray sudah running."
+        "QZ-Tray connection failed setelah 3 percobaan. Pastikan aplikasi QZ-Tray sudah running.",
     );
 }
 
 // ✅ PERBAIKAN 3: Better printer validation
+// some clients use fixed device names; provide explicit aliases first
+const PRINTER_ALIASES = {
+    thermal: [
+        "PRINTER THERMAL INFORCE P58C NB", // exact Windows name
+        "inforce",
+        "p58",
+        "p58c",
+        "thermal",
+        "pos",
+        "xprinter",
+        "zjiang",
+        "58mm",
+    ],
+    dotmatrix: [
+        "EPSON LX-310 Series",
+        "epson",
+        "lx",
+        "fx",
+        "impact",
+        "dotmatrix",
+    ],
+};
+
 function findPrinterByType(type, availablePrinters) {
+    // first check aliases / exact names
+    const aliases = PRINTER_ALIASES[type] || [];
+    for (const alias of aliases) {
+        const found = availablePrinters.find((p) =>
+            p.toLowerCase().includes(alias.toLowerCase()),
+        );
+        if (found) {
+            console.log(
+                `✓ Found ${type} printer via alias '${alias}': ${found}`,
+            );
+            return found;
+        }
+    }
+
+    // fall back to generic search terms if alias lookup failed
     const searchTerms = {
-        thermal: ["thermal", "pos", "xprinter", "zjiang", "58mm"],
+        thermal: [
+            "thermal",
+            "pos",
+            "xprinter",
+            "zjiang",
+            "58mm",
+            "inforce",
+            "p58",
+            "p58c",
+        ],
         dotmatrix: ["dotmatrix", "epson", "lx", "fx", "impact"],
     };
 
@@ -177,7 +224,7 @@ function findPrinterByType(type, availablePrinters) {
     // Cari berdasarkan nama printer
     for (const term of terms) {
         const found = availablePrinters.find((p) =>
-            p.toLowerCase().includes(term.toLowerCase())
+            p.toLowerCase().includes(term.toLowerCase()),
         );
         if (found) {
             console.log(`✓ Found ${type} printer: ${found}`);
@@ -199,26 +246,110 @@ export async function printWithQZTray(payload) {
         // 1. Koneksi (hanya sekali!)
         connected = await connectQZTray();
 
-        // 2. Dapatkan daftar printer
-        const availablePrinters = await qz.printers.getAvailable();
-        if (!availablePrinters?.length) {
-            throw new Error("❌ Tidak ada printer yang tersedia di sistem.");
-        }
-
-        console.log("📋 Available printers:", availablePrinters);
-
-        // 3. Cari printer sesuai tipe
+        // 2. Dapatkan printer list atau cari langsung sesuai API
         const printerType = payload.printer;
-        let selectedPrinter = findPrinterByType(printerType, availablePrinters);
+        let selectedPrinter = null;
 
-        if (!selectedPrinter) {
-            selectedPrinter = availablePrinters[0];
+        // helper to try the old getAvailable() method if present
+        if (typeof qz.printers.getAvailable === "function") {
+            const availablePrinters = await qz.printers.getAvailable();
+            if (!availablePrinters?.length) {
+                throw new Error(
+                    "❌ Tidak ada printer yang tersedia di sistem.",
+                );
+            }
+            console.log("📋 Available printers:", availablePrinters);
+            selectedPrinter = findPrinterByType(printerType, availablePrinters);
+            if (!selectedPrinter) {
+                selectedPrinter = availablePrinters[0];
+                console.warn(
+                    `⚠️ Printer ${printerType} tidak ditemukan. Menggunakan: ${selectedPrinter}`,
+                );
+            }
+            console.log(`✓ Printer dipilih: ${selectedPrinter}`);
+        } else {
+            // newer QZ versions (e.g. 2.2.5) don't expose getAvailable;
+            // we must search using qz.printers.find() and/or default.
             console.warn(
-                `⚠️ Printer ${printerType} tidak ditemukan. Menggunakan: ${selectedPrinter}`
+                "⚠️ qz.printers.getAvailable() tidak tersedia, menggunakan fallback API",
             );
+            const searchTerms = {
+                thermal: [
+                    "thermal",
+                    "pos",
+                    "xprinter",
+                    "zjiang",
+                    "58mm",
+                    "inforce",
+                    "p58",
+                    "p58c",
+                ],
+                dotmatrix: ["dotmatrix", "epson", "lx", "fx", "impact"],
+            };
+            const terms = searchTerms[printerType] || [];
+            for (const term of terms) {
+                try {
+                    const found = await qz.printers.find(term);
+                    if (found) {
+                        selectedPrinter = found;
+                        console.log(
+                            `✓ Found ${printerType} printer by term '${term}': ${found}`,
+                        );
+                        break;
+                    }
+                } catch (e) {
+                    // ignore, printer name doesn't match
+                }
+            }
+
+            if (!selectedPrinter) {
+                try {
+                    const def = await qz.printers.getDefault();
+                    if (def) {
+                        selectedPrinter = def;
+                        console.warn(
+                            `⚠️ Printer ${printerType} tidak ditemukan melalui pencarian; menggunakan default: ${def}`,
+                        );
+                    }
+                } catch (e) {
+                    // no default available
+                }
+            }
+
+            if (!selectedPrinter) {
+                throw new Error(
+                    "❌ Tidak ada printer yang tersedia di sistem (fallback failed).",
+                );
+            }
         }
 
-        console.log(`✓ Printer dipilih: ${selectedPrinter}`);
+        // verify the chosen printer actually looks like the correct type
+        const validationTerms = {
+            thermal: [
+                "thermal",
+                "pos",
+                "xprinter",
+                "zjiang",
+                "58mm",
+                "inforce",
+                "p58",
+                "p58c",
+            ],
+            dotmatrix: ["dotmatrix", "epson", "lx", "fx", "impact"],
+        };
+        const vals = validationTerms[printerType] || [];
+        if (selectedPrinter) {
+            const lowerName = selectedPrinter.toLowerCase();
+            const matched = vals.some((t) =>
+                lowerName.includes(t.toLowerCase()),
+            );
+            if (!matched) {
+                throw new Error(
+                    `❌ Printer yang dipilih (${selectedPrinter}) bukan jenis '${printerType}'. ` +
+                        `Pastikan printer ${printerType} terpasang dan dikenali oleh sistem.`,
+                );
+            }
+        }
 
         // 4. Generate format nota
         const printData =
@@ -232,8 +363,16 @@ export async function printWithQZTray(payload) {
 
         console.log(`✓ Print data generated (${printData.length} bytes)`);
 
-        // 5. ✅ PERBAIKAN: Proper QZ Tray config
-        const config = [
+        // 5. ✅ PERBAIKAN: create a proper QZ Tray configuration object
+        //    qz.print expects two arguments (config, data), otherwise the
+        //    internal code tries to access o[0] where o is undefined.
+        const cfg = qz.configs.create(selectedPrinter, {
+            // you may add other options here if needed later
+            encoding: "UTF-8",
+        });
+
+        // wrap the payload in an array since qz.print handles arrays of data
+        const dataArray = [
             {
                 type: "raw",
                 format: "plain",
@@ -242,9 +381,10 @@ export async function printWithQZTray(payload) {
             },
         ];
 
-        // 6. Set printer dan execute print
+        // 6. Set printer (ensure it exists) and execute print job
         await qz.printers.find(selectedPrinter);
-        await qz.print(config);
+        console.log("🔧 qz.print config:", cfg, "data:", dataArray);
+        await qz.print(cfg, dataArray);
 
         console.log("✓ Print job sent successfully");
         return {
@@ -278,7 +418,7 @@ export async function printWithQZTray(payload) {
 export async function printToMultiplePrinters(payloads) {
     try {
         const results = await Promise.all(
-            payloads.map((payload) => printWithQZTray(payload))
+            payloads.map((payload) => printWithQZTray(payload)),
         );
         return {
             success: results.every((r) => r.success),
@@ -291,4 +431,12 @@ export async function printToMultiplePrinters(payloads) {
             error: error,
         };
     }
+}
+
+// Make key functions available globally in the browser environment
+if (typeof window !== "undefined") {
+    window.printWithQZTray = printWithQZTray;
+    window.printToMultiplePrinters = printToMultiplePrinters;
+    window.generateThermalFormat = generateThermalFormat;
+    window.generateDotMatrixFormat = generateDotMatrixFormat;
 }

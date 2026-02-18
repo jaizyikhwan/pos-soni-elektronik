@@ -171,11 +171,12 @@
                         Tutup
                     </button>
 
-                    <button wire:click="printUlang('thermal')" class="px-3 py-2 text-sm bg-blue-600 text-white rounded">
+                    <button wire:click="printUlang('thermal')" data-printer="thermal"
+                        class="px-3 py-2 text-sm bg-blue-600 text-white rounded">
                         Print Thermal
                     </button>
 
-                    <button wire:click="printUlang('dotmatrix')"
+                    <button wire:click="printUlang('dotmatrix')" data-printer="dotmatrix"
                         class="px-3 py-2 text-sm bg-indigo-600 text-white rounded">
                         Print Dotmatrix
                     </button>
@@ -211,17 +212,23 @@
                     printBtn.textContent = 'Memproses...';
                 }
 
-                const {
-                    printWithQZTray
-                } = await import('/resources/js/printer.js');
-                const result = await printWithQZTray(payload);
+                try {
+                    if (typeof window.printWithQZTray !== 'function') {
+                        throw new Error('Printer module belum tersedia');
+                    }
 
-                if (result.success) {
-                    console.log("✓ Print successful");
-                    alert(result.message);
-                } else {
-                    console.error("✗ Print failed:", result.message);
-                    alert(result.message);
+                    const result = await window.printWithQZTray(payload);
+
+                    if (result.success) {
+                        console.log("✓ Print successful");
+                        alert(result.message);
+                    } else {
+                        console.error("✗ Print failed:", result.message);
+                        alert(result.message);
+                    }
+                } catch (error) {
+                    console.error('❌ Print execution error:', error);
+                    alert(error.message || 'Error mencetak');
                 }
             } catch (error) {
                 console.error('❌ Print execution error:', error);
