@@ -173,6 +173,34 @@
         {{ $items->links() }}
     </div>
 
+    {{-- DELETE CONFIRMATION MODAL --}}
+    @if ($confirmingDelete)
+        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div class="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-sm p-6 space-y-4 animate-fade-in">
+
+                <h3 class="text-lg font-semibold text-center text-red-600">
+                    Hapus Barang?
+                </h3>
+
+                <p class="text-sm text-center text-zinc-500">
+                    Yakin ingin menghapus <strong>{{ $selectedItemName }}</strong>?
+                </p>
+
+                {{-- ACTION --}}
+                <div class="flex justify-between gap-2 pt-2">
+                    <button wire:click="$set('confirmingDelete', false)"
+                        class="w-full px-4 py-2 rounded-lg border border-zinc-300 text-sm text-zinc-700 dark:text-zinc-300">
+                        Batal
+                    </button>
+
+                    <button wire:click="deleteItem" class="w-full px-4 py-2 rounded-lg bg-red-600 text-white text-sm">
+                        Hapus
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
     @if ($showPinModal)
         <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div class="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-sm p-6 space-y-4 animate-fade-in">

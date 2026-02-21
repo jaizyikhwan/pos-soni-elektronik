@@ -182,11 +182,30 @@
                     </button>
 
                     @if ($selectedTransaction->status === 'VALID')
-                        <button wire:click="cancelTransaction({{ $selectedTransaction->id }})"
+                        <button wire:click="confirmCancel({{ $selectedTransaction->id }})"
                             class="px-3 py-2 text-sm bg-red-600 text-white rounded">
                             Batalkan
                         </button>
                     @endif
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- konfirmasi pembatalan --}}
+    @if ($confirmingCancel)
+        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div class="bg-white dark:bg-zinc-900 rounded-xl w-full max-w-sm p-6 space-y-4">
+                <h3 class="text-lg font-semibold">Konfirmasi</h3>
+                <p>Anda yakin ingin membatalkan transaksi ini?</p>
+                <div class="flex justify-end gap-2 pt-4">
+                    <button wire:click="$set('confirmingCancel', false)" class="px-3 py-2 text-sm border rounded">
+                        Batal
+                    </button>
+
+                    <button wire:click="cancelConfirmed" class="px-3 py-2 text-sm bg-red-600 text-white rounded">
+                        Ya, batalkan
+                    </button>
                 </div>
             </div>
         </div>

@@ -2,10 +2,11 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
-use Livewire\WithPagination;
 use App\Models\Transaction;
 use App\Services\NotaPrinter;
+use Illuminate\Support\Facades\DB;
+use Livewire\Component;
+use Livewire\WithPagination;
 
 class History extends Component
 {
@@ -23,6 +24,9 @@ class History extends Component
         'month'  => ['except' => ''],
         'search' => ['except' => ''],
     ];
+
+    public $confirmingCancel = false;
+    public $cancelId;
 
     public function updatingSearch()
     {
@@ -78,11 +82,38 @@ class History extends Component
 
     public function cancelTransaction($id)
     {
-        Transaction::where('id', $id)->update([
-            'status' => 'CANCELLED'
-        ]);
+        $trx = Transaction::with('item')->findOrFail($id);
+
+        if ($trx->status !== 'CANCELLED') {
+            DB::transaction(function () use ($trx) {
+                // sesuaikan nama kolom/tabel stok-mu
+                if ($trx->item) {
+                    $trx->item->increment('stok', $trx->jumlah);
+                    // atau ->increment('stock', $trx->jumlah);
+                }
+
+                $trx->update(['status' => 'CANCELLED']);
+            });
+        }
 
         $this->showModal = false;
+    }
+
+    public function confirmCancel($id)
+    {
+        $this->cancelId = $id;
+        $this->confirmingCancel = true;
+    }
+
+    public function cancelConfirmed()
+    {
+        if ($this->cancelId) {
+            $this->cancelTransaction($this->cancelId);
+        }
+
+        // reset state modal konfirmasi
+        $this->confirmingCancel = false;
+        $this->cancelId       = null;
     }
 
     public function render()

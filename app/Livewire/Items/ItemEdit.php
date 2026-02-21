@@ -84,6 +84,15 @@ class ItemEdit extends Component
         return redirect()->route('items.index');
     }
 
+    public function incrementStok()
+    {
+        $this->stok = ((int) $this->stok) + 1;
+    }
+
+    public function decrementStok()
+    {
+        $this->stok = max(0, ((int) $this->stok) - 1);
+    }
 
     public function render()
     {
