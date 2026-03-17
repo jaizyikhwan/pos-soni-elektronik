@@ -66,7 +66,7 @@ class Cart extends Component
             if (!isset($this->harga[$cartItem->id])) {
                 $this->harga[$cartItem->id] =
                     $cartItem->harga_manual
-                    ?? $cartItem->item->harga_jual;
+                    ?? '';
             }
 
             // Qty default
@@ -198,70 +198,112 @@ class Cart extends Component
             return;
         }
 
+        $total   = intval($this->total);
+        $titipan = intval($this->titipan);
+
+        if ($titipan < 0) {
+            $titipan = 0;
+        }
+
+        $sisa = max(0, $total - $titipan);
+
+        // ✅ RULE FINAL
+        if ($titipan > 0) {
+            $status = 'DP';
+        } else {
+            $status = 'LUNAS';
+        }
+
         $createdTransactions = collect();
 
-        // 1. Simpan transaksi
         foreach ($this->cartItems as $cartItem) {
-            $harga = intval($this->harga[$cartItem->id] ?? 0);
+
+            $rawHarga = $this->harga[$cartItem->id] ?? null;
+
+            if ($rawHarga === null || $rawHarga === '') {
+                session()->flash(
+                    'error',
+                    "Harga jual belum diisi untuk item: {$cartItem->item->nama_barang}"
+                );
+                return;
+            }
+
+            $harga = intval(str_replace(['Rp', '.', ' '], '', $rawHarga));
 
             if ($harga <= 0 || $harga < $cartItem->item->harga_beli) {
-                session()->flash('error', "Harga tidak valid untuk item: {$cartItem->item->nama_barang}");
+                session()->flash(
+                    'error',
+                    "Harga tidak valid untuk item: {$cartItem->item->nama_barang}"
+                );
                 return;
             }
 
             $trx = Transaction::create([
-                'item_id'           => $cartItem->item_id,
-                'nama_pembeli'      => $this->nama_pembeli,
-                'no_hp'             => $this->no_hp,
-                'alamat'            => $this->alamat,
-                'jumlah'            => $cartItem->quantity,
-                'harga_satuan'      => $harga,
-                'total_harga'       => $harga * $cartItem->quantity,
-                'nomor_seri'        => $this->nomorSeri[$cartItem->id] ?? null,
-                'tanggal'           => now()->toDateString(),
-                'titipan'           => intval($this->titipan),
-                'sisa_pembayaran'   => max(0, $this->total - intval($this->titipan)),
-                'status_pembayaran' => $this->sisa > 0 ? 'DP' : 'LUNAS',
+
+                'item_id'      => $cartItem->item_id,
+                'nama_pembeli' => $this->nama_pembeli,
+                'no_hp'        => $this->no_hp,
+                'alamat'       => $this->alamat,
+
+                'jumlah'       => $cartItem->quantity,
+                'harga_satuan' => $harga,
+                'total_harga'  => $harga * $cartItem->quantity,
+
+                'nomor_seri'   => $this->nomorSeri[$cartItem->id] ?? null,
+                'tanggal'      => now()->toDateString(),
+
+                'titipan'           => $titipan,
+                'sisa_pembayaran'   => $sisa,
+                'status_pembayaran' => $status,
             ]);
 
             $createdTransactions->push($trx);
         }
 
-        // 2. Hitung ulang total, sisa, dsb
-        $total = $createdTransactions->sum('total_harga');
-        $titipan = intval($this->titipan);
-        $sisa = max(0, $total - $titipan);
 
-        // 3. Format items dengan struktur yang konsisten
         $formattedItems = $createdTransactions->map(function ($transaction) {
             return [
-                'nama_barang'   => $transaction->item->nama_barang,
-                'quantity'      => $transaction->jumlah,
-                'harga_satuan'  => $transaction->harga_satuan,
-                'total'         => $transaction->total_harga,
-                'nomor_seri'    => $transaction->nomor_seri,
+                'nama_barang'  => $transaction->item->nama_barang,
+                'tipe_barang'  => $transaction->item->tipe_barang,
+                'quantity'     => $transaction->jumlah,
+                'harga_satuan' => $transaction->harga_satuan,
+                'total'        => $transaction->total_harga,
+                'nomor_seri'   => $transaction->nomor_seri,
             ];
         })->toArray();
 
-        // 4. Dispatch event dengan payload terstruktur
+
         $this->dispatch('print-receipt', [
-            'printer'     => $printerType,
-            'pembeli'     => $this->nama_pembeli,
-            'no_hp'       => $this->no_hp,
-            'alamat'      => $this->alamat,
-            'items'       => $formattedItems,
-            'total'       => intval($total),
-            'titipan'     => intval($titipan),
-            'sisa'        => intval($sisa),
-            'status'      => $sisa > 0 ? 'DP' : 'LUNAS',
-            'tanggal'     => now()->format('d M Y'),
+
+            'printer' => $printerType,
+
+            'pembeli' => $this->nama_pembeli,
+            'no_hp'   => $this->no_hp,
+            'alamat'  => $this->alamat,
+
+            'items'   => $formattedItems,
+
+            'total'   => $total,
+            'titipan' => $titipan,
+            'sisa'    => $sisa,
+            'status'  => $status,
+
+            'tanggal' => now()->format('d M Y'),
         ]);
 
-        // 5. Hapus semua item di cart
+
         CartItem::truncate();
 
-        // 6. Reset cart
-        $this->reset(['cartItems', 'harga', 'qty', 'nomorSeri', 'total', 'titipan', 'sisa']);
+        $this->reset([
+            'cartItems',
+            'harga',
+            'qty',
+            'nomorSeri',
+            'total',
+            'titipan',
+            'sisa'
+        ]);
+
         $this->loadCart();
 
         session()->flash('success', 'Checkout berhasil, mencetak nota...');

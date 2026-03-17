@@ -28,53 +28,68 @@ function validatePayload(payload) {
     return true;
 }
 
+function formatRupiah(num) {
+    num = Number(num) || 0;
+
+    return "Rp " + num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
 // Generate format untuk Thermal (POS-58)
 function generateThermalFormat(payload) {
     validatePayload(payload);
 
     const esc = "\x1B";
     let t = "";
-    t += esc + "@"; // Init
-    t += esc + "a" + String.fromCharCode(1); // Center
-    t += "═══════════════════════════\n";
-    t += "     SONI ELEKTRONIK\n";
-    t += "  Jl. Demuk No. 123\n";
-    t += "     Tulungagung\n";
-    t += "═══════════════════════════\n";
 
-    t += esc + "a" + String.fromCharCode(0); // Left align
-    t += `Tanggal: ${payload.tanggal}\n`;
-    t += `Pembeli: ${payload.pembeli}\n`;
-    t += `HP: ${payload.no_hp}\n`;
-    t += `Alamat: ${payload.alamat}\n`;
-    t += "───────────────────────────\n";
-    t += "BARANG              QTY TOTAL\n";
-    t += "───────────────────────────\n";
+    t += esc + "@";
+    t += esc + "t" + String.fromCharCode(0);
+    t += esc + "M" + String.fromCharCode(1);
+
+    t += esc + "a" + String.fromCharCode(1);
+
+    t += "==========================================\n";
+    t += "SONI ELEKTRONIK\n";
+    t += "Jl. Demuk No.123\n";
+    t += "Tulungagung\n";
+    t += "==========================================\n";
+
+    t += esc + "a" + String.fromCharCode(0);
+
+    t += `Tanggal : ${payload.tanggal}\n`;
+    t += `Pembeli : ${payload.pembeli}\n`;
+    t += `No HP   : ${payload.no_hp}\n`;
+    t += `Alamat  : ${payload.alamat}\n`;
+
+    t += "------------------------------------------\n";
 
     payload.items.forEach((item) => {
-        const nama = (item.nama_barang || "").substring(0, 15).padEnd(15);
-        const qty = String(item.quantity || 0).padStart(3);
-        const total = String(item.total || 0).padStart(8);
-        t += `${nama}${qty}${total}\n`;
+        const nama = item.nama_barang || "";
+        const tipe = item.tipe_barang || "";
+        const qty = item.quantity || 0;
+        const total = item.total || 0;
+
+        t += nama + "\n";
+
+        if (tipe) {
+            t += "Tipe : " + tipe + "\n";
+        }
+
+        const kiri = `${qty} x ${formatRupiah(total)}`;
+        const kanan = formatRupiah(total).padStart(15);
+
+        t += kiri.padEnd(27) + kanan + "\n";
+        t += "\n";
     });
 
-    t += "───────────────────────────\n";
-    t += `TOTAL: Rp ${String(payload.total || 0).padStart(15)}\n`;
-    if (payload.titipan > 0) {
-        t += `TITIPAN: Rp ${String(payload.titipan).padStart(13)}\n`;
-        t += `SISA: Rp ${String(payload.sisa || 0).padStart(17)}\n`;
-    }
-    t += "═══════════════════════════\n";
-    t += `STATUS: ${payload.status}\n`;
-    t += "Terima Kasih!\n\n\n\n";
+    t += "------------------------------------------\n";
 
-    t += esc + "i"; // Cut paper
+    t += "TOTAL".padEnd(27) + formatRupiah(payload.total).padStart(15) + "\n";
 
-    console.log("🖨️ [THERMAL] Generated data:", {
-        length: t.length,
-        preview: t.substring(0, 100),
-        itemCount: payload.items.length,
-    });
+    t += "==========================================\n";
+
+    t += "Terima Kasih\n\n\n";
+
+    t += esc + "m";
 
     return t;
 }
@@ -83,46 +98,75 @@ function generateThermalFormat(payload) {
 function generateDotMatrixFormat(payload) {
     validatePayload(payload);
 
+    // ✅ LOGIC STATUS BENAR
+    const titipan = Number(payload.titipan) || 0;
+    const total = Number(payload.total) || 0;
+    const sisa = total - titipan;
+
+    const status = titipan > 0 ? "DP" : "LUNAS";
+
     let t = "";
+
     t += "        SONI ELEKTRONIK\n";
     t += "      Jl. Demuk No. 123\n";
     t += "       Tulungagung\n";
     t += "========================================\n";
+
     t += `Tanggal : ${payload.tanggal}\n`;
     t += `Pembeli : ${payload.pembeli}\n`;
-    t += `HP      : ${payload.no_hp}\n`;
-    t += `Alamat  : ${payload.alamat}\n`;
+    t += `HP      : ${payload.no_hp || "-"}\n`;
+    t += `Alamat  : ${payload.alamat || "-"}\n`;
+
     t += "----------------------------------------\n";
+
     t += "Barang               Qty   Harga   Total\n";
     t += "----------------------------------------\n";
 
     payload.items.forEach((item) => {
         const name = (item.nama_barang || "").padEnd(20).substring(0, 20);
+
         const qty = String(item.quantity || 0).padStart(3);
+
         const harga = String(item.harga_satuan || 0).padStart(7);
-        const total = String(item.total || 0).padStart(9);
-        t += `${name}${qty}${harga}${total}\n`;
+
+        const totalItem = String(item.total || 0).padStart(9);
+
+        t += `${name}${qty}${harga}${totalItem}\n`;
+
+        // ✅ Tipe
+        if (item.tipe_barang) {
+            t += `   Tipe : ${item.tipe_barang}\n`;
+        }
+
+        // ✅ SN pindah ke dotmatrix
+        if (item.nomor_seri) {
+            t += `   SN   : ${item.nomor_seri}\n`;
+        }
     });
 
     t += "----------------------------------------\n";
-    t += `TOTAL                      ${String(payload.total || 0).padStart(
-        9,
-    )}\n`;
-    if (payload.titipan > 0) {
-        t += `TITIPAN                    ${String(payload.titipan).padStart(
-            9,
-        )}\n`;
-        t += `SISA                       ${String(payload.sisa || 0).padStart(
-            9,
-        )}\n`;
-    }
-    t += "========================================\n";
-    t += `STATUS: ${payload.status}\n`;
-    t += "Terima Kasih!\n\n";
 
-    console.log("🖨️ [DOTMATRIX] Generated data:", {
-        length: t.length,
-        preview: t.substring(0, 100),
+    t += `TOTAL                      ${String(total).padStart(9)}\n`;
+
+    // ✅ TITIPAN pindah ke dotmatrix
+    if (titipan > 0) {
+        t += `TITIPAN                    ${String(titipan).padStart(9)}\n`;
+
+        t += `SISA                       ${String(sisa).padStart(9)}\n`;
+    }
+
+    t += "========================================\n";
+
+    // ✅ STATUS pindah ke dotmatrix
+    t += `STATUS : ${status}\n`;
+
+    t += "Terima Kasih\n\n\n";
+
+    console.log("🖨️ [DOTMATRIX FINAL]", {
+        total,
+        titipan,
+        sisa,
+        status,
         itemCount: payload.items.length,
     });
 
@@ -368,7 +412,7 @@ export async function printWithQZTray(payload) {
         //    internal code tries to access o[0] where o is undefined.
         const cfg = qz.configs.create(selectedPrinter, {
             // you may add other options here if needed later
-            encoding: "UTF-8",
+            encoding: "Cp437",
         });
 
         // wrap the payload in an array since qz.print handles arrays of data

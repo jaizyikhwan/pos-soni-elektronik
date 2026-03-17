@@ -51,10 +51,10 @@
                                     {{ $item->nama_barang }}
                                 </div>
                                 <div class="text-xs text-zinc-500">
-                                    {{ $item->tipe_barang }}
+                                    Tipe: {{ $item->tipe_barang }}
                                 </div>
-                                <div class="text-xs font-medium mt-1">
-                                    Rp {{ number_format($item->harga_jual, 0, ',', '.') }}
+                                <div class="text-xs text-zinc-500 font-medium mt-1">
+                                    Kulak: Rp {{ number_format($item->harga_beli, 0, ',', '.') }}
                                 </div>
                             </td>
 
@@ -110,7 +110,6 @@
                         <th class="px-6 py-3">Tipe</th>
                         <th class="px-6 py-3 text-center">Stok</th>
                         <th class="px-6 py-3">Harga Kulak</th>
-                        <th class="px-6 py-3">Harga Jual</th>
                         <th class="px-6 py-3 text-center">Aksi</th>
                     </tr>
                 </thead>
@@ -129,10 +128,6 @@
 
                             <td class="px-6 py-4">
                                 Rp {{ number_format($item->harga_beli, 0, ',', '.') }}
-                            </td>
-
-                            <td class="px-6 py-4 font-medium">
-                                Rp {{ number_format($item->harga_jual, 0, ',', '.') }}
                             </td>
 
                             <td class="px-6 py-4 text-center">
@@ -157,7 +152,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center py-6 text-zinc-500">
+                            <td colspan="5" class="text-center py-6 text-zinc-500">
                                 Barang tidak ditemukan
                             </td>
                         </tr>

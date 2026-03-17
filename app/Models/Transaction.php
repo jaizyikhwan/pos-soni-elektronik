@@ -20,6 +20,9 @@ class Transaction extends Model
         'nomor_seri',
         'tanggal',
         'status',
+        'titipan',
+        'sisa_pembayaran',
+        'status_pembayaran',
     ];
 
     /**

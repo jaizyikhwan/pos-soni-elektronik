@@ -56,7 +56,7 @@
 
                     {{-- Harga --}}
                     <div class="flex items-center gap-2">
-                        <input type="text" wire:model.lazy="harga.{{ $cartItem->id }}" placeholder="Harga jual"
+                        <input type="text" wire:model.lazy="harga.{{ $cartItem->id }}" placeholder="Isi Harga jual"
                             class="w-full px-3 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm">
 
                         <button wire:click="updateHarga({{ $cartItem->id }})"
@@ -87,7 +87,7 @@
                         <th class="px-6 py-3 text-left">Tipe</th>
                         <th class="px-6 py-3 text-center">Harga Kulak</th>
                         <th class="px-6 py-3">No Seri</th>
-                        <th class="px-6 py-3">Harga</th>
+                        <th class="px-6 py-3">Harga Jual</th>
                         <th class="px-6 py-3 text-center">Qty</th>
                         <th class="px-6 py-3 text-center">Aksi</th>
                     </tr>
@@ -125,6 +125,7 @@
                             <td class="px-6 py-4">
                                 <div class="flex gap-2 justify-center">
                                     <input type="text" wire:model.defer="harga.{{ $cartItem->id }}"
+                                        placeholder="Wajib isi"
                                         class="w-28 px-2 py-1 rounded-lg border border-zinc-300 dark:border-zinc-700 text-sm">
 
                                     <button wire:click="updateHarga({{ $cartItem->id }})" class="text-accent text-sm">

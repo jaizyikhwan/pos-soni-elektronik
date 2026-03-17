@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Item;
 use App\Livewire\Cart;
 use Livewire\Volt\Volt;
 use App\Livewire\Barcode;
@@ -12,12 +11,19 @@ use App\Livewire\Items\ItemIndex;
 use App\Livewire\Items\ItemCreate;
 use App\Livewire\Items\OutOfStock;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\CartController;
-use App\Http\Controllers\ItemController;
-use App\Http\Controllers\BarcodeController;
-use App\Http\Controllers\HistoryController;
-use App\Http\Controllers\TransactionController;
 use App\Livewire\Dashboard;
+
+Route::any('/register', function () {
+    abort(404);
+});
+
+Route::any('/forgot-password', function () {
+    abort(404);
+});
+
+Route::any('/reset-password', function () {
+    abort(404);
+});
 
 Route::get('/', function () {
     return redirect()->route('dashboard');

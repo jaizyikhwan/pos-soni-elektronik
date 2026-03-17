@@ -33,6 +33,10 @@ class ItemIndex extends Component
         $this->resetPage();
     }
 
+    // =========================
+    // DELETE
+    // =========================
+
     public function confirmDelete($itemId)
     {
         $item = Item::findOrFail($itemId);
@@ -58,6 +62,10 @@ class ItemIndex extends Component
         $this->dispatch('stokUpdated');
     }
 
+    // =========================
+    // UPDATE STOK
+    // =========================
+
     public function updateStokItem($itemId, $stokBaru)
     {
         if ($stokBaru < 0) return;
@@ -72,6 +80,10 @@ class ItemIndex extends Component
 
         $this->dispatch('stokUpdated');
     }
+
+    // =========================
+    // PIN EDIT
+    // =========================
 
     public function goToEdit($id)
     {
@@ -91,6 +103,9 @@ class ItemIndex extends Component
 
         $itemId = $this->pendingEditItemId;
 
+        // 🔴 WAJIB → reset camera sebelum pindah halaman
+        $this->dispatch('reset-camera');
+
         $this->reset([
             'showPinModal',
             'pin',
@@ -98,8 +113,16 @@ class ItemIndex extends Component
             'pendingEditItemId',
         ]);
 
-        return redirect()->route('items.edit', $itemId);
+        // 🔴 WAJIB → navigate true untuk Livewire 3
+        return $this->redirect(
+            route('items.edit', $itemId),
+            navigate: true
+        );
     }
+
+    // =========================
+    // CART
+    // =========================
 
     public function addToCart($itemId)
     {
@@ -127,8 +150,13 @@ class ItemIndex extends Component
         });
 
         session()->flash('success', 'Item ditambahkan ke keranjang.');
+
         return redirect()->route('cart.index');
     }
+
+    // =========================
+    // RENDER
+    // =========================
 
     public function render()
     {

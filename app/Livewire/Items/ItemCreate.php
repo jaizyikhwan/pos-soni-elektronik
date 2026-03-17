@@ -32,7 +32,6 @@ class ItemCreate extends Component
             ],
 
             'harga_beli'    => 'required|integer|min:1',
-            'harga_jual'    => 'required|integer|gt:harga_beli',
             'stok'          => 'required|integer|min:1',
             'tanggal_order' => 'required|date',
         ];
@@ -41,7 +40,6 @@ class ItemCreate extends Component
     protected array $messages = [
         'required'        => ':attribute wajib diisi.',
         'integer'         => ':attribute harus berupa angka.',
-        'harga_jual.gt'   => 'Harga jual harus lebih besar dari harga kulak.',
         'stok.min'        => 'Stok harus diisi minimal 1.',
     ];
 
@@ -49,7 +47,6 @@ class ItemCreate extends Component
         'nama_barang' => 'Nama barang',
         'tipe_barang' => 'Tipe barang',
         'harga_beli'  => 'Harga kulak',
-        'harga_jual'  => 'Harga jual',
         'stok'        => 'Stok',
     ];
 
@@ -57,7 +54,6 @@ class ItemCreate extends Component
     {
         // Bersihkan format rupiah
         $this->harga_beli = preg_replace('/[^\d]/', '', $this->harga_beli);
-        $this->harga_jual = $this->harga_jual ? preg_replace('/[^\d]/', '', $this->harga_jual) : null;
 
         $validated = $this->validate();
 
@@ -66,7 +62,7 @@ class ItemCreate extends Component
             'tipe_barang' => $validated['tipe_barang'],
             'barcode' => $validated['barcode'] ?? null,
             'harga_beli' => $validated['harga_beli'],
-            'harga_jual' => $validated['harga_jual'],
+            'harga_jual' => null,
             'stok' => $validated['stok'],
             'tanggal_order' => $validated['tanggal_order'] ?? now(),
         ];
@@ -108,10 +104,8 @@ class ItemCreate extends Component
                     $harga_beli_rata2 = round(($total_nilai_lama + $total_nilai_baru) / max(1, $total_stok));
 
                     $existing->harga_beli = $harga_beli_rata2;
-                    $existing->harga_jual = round($harga_beli_rata2 * 1.2);
                 } else {
                     $existing->harga_beli = $payload['harga_beli'];
-                    $existing->harga_jual = round($payload['harga_beli'] * 1.2);
                 }
 
                 $existing->stok = $total_stok;

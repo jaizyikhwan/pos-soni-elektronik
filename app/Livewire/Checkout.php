@@ -21,7 +21,7 @@ class Checkout extends Component
         $this->item = Item::findOrFail($id);
         $this->tanggal = now()->format('Y-m-d');
         $this->jumlah_beli = 1;
-        $this->total_harga = $this->item->harga_jual;
+        $this->total_harga = '';
     }
 
     public function processCheckout()
@@ -30,7 +30,7 @@ class Checkout extends Component
 
         $this->validate([
             'jumlah_beli' => 'required|integer|min:1',
-            'total_harga' => 'required|numeric|min:0',
+            'total_harga' => 'required|numeric|min:1',
             'tanggal' => 'required|date',
         ]);
 

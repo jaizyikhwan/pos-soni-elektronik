@@ -5,6 +5,7 @@ namespace App\Actions\Fortify;
 use App\Models\User;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 
 class CreateNewUser implements CreatesNewUsers
@@ -18,6 +19,13 @@ class CreateNewUser implements CreatesNewUsers
      */
     public function create(array $input): User
     {
+        // ✅ CEK jika user sudah ada
+        if (User::count() >= 1) {
+            throw ValidationException::withMessages([
+                'email' => ['Register dinonaktifkan. Hubungi admin.'],
+            ]);
+        }
+
         Validator::make($input, [
             'name' => ['required', 'string', 'max:255'],
             'email' => [

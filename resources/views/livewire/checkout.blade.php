@@ -47,7 +47,7 @@
         {{-- TOTAL HARGA --}}
         <div class="mb-4">
             <label class="text-sm text-zinc-600 dark:text-zinc-400">
-                Harga Jual (per item)
+                Harga Jual (wajib diisi)
             </label>
 
             <input type="text" wire:model.defer="total_harga" placeholder="Rp 0"

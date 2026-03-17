@@ -14,7 +14,6 @@ class ItemEdit extends Component
     public $tipe_barang;
     public $barcode;
     public $harga_beli;
-    public $harga_jual;
     public $stok;
     public $tanggal_order;
 
@@ -26,7 +25,6 @@ class ItemEdit extends Component
         $this->tipe_barang = $item->tipe_barang;
         $this->barcode = $item->barcode;
         $this->harga_beli = "Rp " . number_format($item->harga_beli, 0, ',', '.');
-        $this->harga_jual = "Rp " . number_format($item->harga_jual, 0, ',', '.');
         $this->stok = $item->stok;
         $this->tanggal_order = $item->tanggal_order;
     }
@@ -47,7 +45,6 @@ class ItemEdit extends Component
             ],
 
             'harga_beli'    => 'required|integer|min:1',
-            'harga_jual'    => 'required|integer|gt:harga_beli',
             'stok'          => 'required|integer|min:1',
             'tanggal_order' => 'required|date',
         ];
@@ -56,7 +53,6 @@ class ItemEdit extends Component
     protected array $messages = [
         'required'        => ':attribute wajib diisi.',
         'integer'         => ':attribute harus berupa angka.',
-        'harga_jual.gt'   => 'Harga jual harus lebih besar dari harga kulak.',
         'stok.min'        => 'Stok harus diisi minimal 1.',
     ];
 
@@ -65,7 +61,6 @@ class ItemEdit extends Component
         'tipe_barang' => 'Tipe barang',
         'barcode'     => 'Barcode',
         'harga_beli'  => 'Harga kulak',
-        'harga_jual'  => 'Harga jual',
         'stok'        => 'Stok',
         'tanggal_order' => 'Tanggal kulak',
     ];
@@ -74,11 +69,17 @@ class ItemEdit extends Component
     {
         // Bersihkan Rp dari harga beli & harga jual
         $this->harga_beli = preg_replace('/[^\d]/', '', $this->harga_beli);
-        $this->harga_jual = preg_replace('/[^\d]/', '', $this->harga_jual);
 
         $validated = $this->validate();
 
-        $this->item->update($validated);
+        $this->item->update([
+            'nama_barang' => $validated['nama_barang'],
+            'tipe_barang' => $validated['tipe_barang'],
+            'barcode' => $validated['barcode'] ?? null,
+            'harga_beli' => $validated['harga_beli'],
+            'stok' => $validated['stok'],
+            'tanggal_order' => $validated['tanggal_order'],
+        ]);
 
         session()->flash('success', 'Data barang berhasil diperbarui.');
         return redirect()->route('items.index');

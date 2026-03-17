@@ -88,7 +88,6 @@
                 <p><strong>Tipe:</strong> {{ $item->tipe_barang }}</p>
                 <p><strong>Barcode:</strong> {{ $item->barcode }}</p>
                 <p><strong>Harga Beli:</strong> Rp {{ number_format($item->harga_beli, 0, ',', '.') }}</p>
-                <p><strong>Harga Jual:</strong> Rp {{ number_format($item->harga_jual, 0, ',', '.') }}</p>
                 <p><strong>Stok:</strong> {{ $item->stok }}</p>
             </div>
 
