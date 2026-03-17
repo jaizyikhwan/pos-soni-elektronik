@@ -5,12 +5,12 @@
 # POS Soni Elektronik
 
 A real-world Point of Sale (POS) and Inventory Management System built using Laravel and Livewire.  
-This project was developed for a small retail electronics store and is currently used in real daily operations.
+This project was developed for a small retail electronics store and is actively used in daily operations.
 
 ## 📌 Background
 
 This system was created to solve real problems in a family-owned retail store that sells home appliances and electronics in a small-town environment.  
-The goal was to build a simple, fast, and reliable POS system tailored to actual user needs instead of using complex commercial software.
+The goal was to build a simple, fast, and reliable POS system tailored to actual user needs, rather than using complex commercial software.
 
 ## 🚀 Features
 
@@ -20,18 +20,34 @@ The goal was to build a simple, fast, and reliable POS system tailored to actual
 - Barcode support (optional & unique)
 - Transaction / cashier system
 - Thermal / dotmatrix printer support
-- Multi-user login
+- Multi-user login (currently only one active user)
 - Server-side validation (Livewire)
 - Dark mode UI
 - Responsive layout
 
 ## 🧩 Tech Stack
 
+**Backend / Frameworks**
+
 - Laravel 10+
 - Livewire 3
 - MySQL
+
+**Frontend / Styling**
+
 - TailwindCSS
 - Alpine.js
+- Instrument Sans (Bunny Fonts)
+- Inter (Google Fonts)
+- Material Symbols (Material Icons)
+
+**Third-Party / Libraries**
+
+- Chart.js (charts & reports)
+- HTML5 QR Code (barcode scanning)
+- QZ Tray (thermal/dotmatrix printer integration)
+- Vite (asset bundling)
+- Flux Appearance (dark mode / theme handling)
 
 ## 🏪 Real Use Case
 
@@ -39,11 +55,11 @@ This system is actively used in a real retail store:
 
 - Small electronics shop
 - Used by non-technical users
-- Runs on local network
+- Hosted online and accessible via a secure web browser
 - Connected to receipt printer
 - Handles real transactions daily
 
-Because this is a real production project, some configuration files are excluded for security reasons.
+> Because this is a real production project, some configuration files are excluded for security reasons.
 
 ## 📷 Screenshots
 
@@ -69,7 +85,7 @@ Because this is a real production project, some configuration files are excluded
 
 ### Search Item By Scan Barcode Feature
 
-![Out of Stock](screenshots/barcode.png)
+![Barcode](screenshots/barcode.png)
 
 ### Cart Page
 
